@@ -1,0 +1,159 @@
+//@version=5
+indicator(title="ABC Pattern, ADX20, EMA200 (Indicator)", shorttitle="Indicator", overlay=true) // indicator
+// strategy(title="ABC Pattern, ADX20, EMA200 (Strategy)", shorttitle="Strategy", overlay=true, calc_on_every_tick=true, default_qty_type=strategy.cash, default_qty_value=2000, initial_capital=100, commission_type=strategy.commission.percent, commission_value=0.07)
+
+// Inputs
+int    length       = 5 // input.int(5, "High/Low length")
+string longOpen     = input.text_area(defval='', title="Long Open Alert Message")
+string longClose    = input.text_area(defval='', title="Long Close Alert Message")
+float  minimumAdx   = input.float(20, "Average Directional Movement Index (ADX)")
+string shortOpen    = input.text_area(defval='', title="Short Open Alert Message")
+string shortClose   = input.text_area(defval='', title="Short Close Alert Message")
+string tradetype    = "Long and Short" // input.string(defval="Long and Short", title="Trade Type", options=["Long and Short", "Long", "Short"])
+float  tp           = 0.5 // input.float(0.5, "Take Profit Multiplicator")
+
+// Declarations
+float  h            = ta.highest(high, length * 2 + 1)
+float  l            = ta.lowest(low, length * 2 + 1)
+bool   recentTouch  = false
+
+// Variables
+var bool   dirUp    = false
+var float  lastLow  = high * 100
+var float  lastHigh = 0.0
+var int    timeLow  = bar_index
+var int    timeHigh = bar_index
+var line   li       = na
+bool       isMin    = l == low[length]
+bool       isMax    = h == high[length]
+
+// Functions
+f_drawLine()        => line.new(x1=timeHigh - length, y1=lastHigh, x2=timeLow - length, y2=lastLow, color=color.gray, width=1 )
+
+// Direction
+if dirUp
+    if isMin and low[length] < lastLow
+        lastLow := low[length]
+        timeLow := bar_index
+        line.delete(li)
+        li := f_drawLine()
+
+    if isMax and high[length] > lastLow
+        lastHigh := high[length]
+        timeHigh := bar_index
+        dirUp := false
+        li := f_drawLine()
+
+if not dirUp
+    if isMax and high[length] > lastHigh
+        lastHigh := high[length]
+        timeHigh := bar_index
+        line.delete(li)
+        li := f_drawLine()
+    if isMin and low[length] < lastHigh
+        lastLow := low[length]
+        timeLow := bar_index
+        dirUp := true
+        li := f_drawLine()
+        if (isMax and high[length] > lastLow)
+            lastHigh := high[length]
+            timeHigh := bar_index
+            dirUp := false
+            li := f_drawLine()
+
+// Checkers        
+for int i = 1 to 10
+    if (low[i] <= lastLow[i] and low[i + 1] > lastLow[i + 1]) or (high[i] >= lastHigh[i] and high[i + 1] < lastHigh[i + 1])
+        recentTouch := true
+        break
+
+// Trend Directions
+ema200 = ta.ema(close, 200)
+plot(ema200, title="EMA200", color=color.yellow, linewidth=4)
+
+// Confirmations
+[directionalIndexPlus, directionalIndexMinux, adx] = ta.dmi(14, 14)
+
+// Conditions Definitions
+longCondition  = high >= lastHigh and high[1] < lastHigh[1] and not recentTouch and close[1] > ema200 and adx > minimumAdx // and (strategy == "Long and Short" or strategy == "Long")
+shortCondition = low <= lastLow   and low[1] > lastLow[1]   and not recentTouch and close[1] < ema200 and adx > minimumAdx // and (strategy == "Long and Short" or strategy == "Short")
+
+// Plots
+plotarrow(shortCondition and not longCondition ? -1 : 0, maxheight=20)
+plotarrow(longCondition and not shortCondition ? 1 : 0, maxheight=20)
+
+// Target Price & Stop Loss
+int   strategy  = na
+float entry     = na
+float target    = na
+float stopLoss  = na
+if strategy[1] == 1 and (close >= target[1] or close < stopLoss[1])
+    alert(message=longClose, freq=alert.freq_once_per_bar)
+    strategy := na
+    entry := na
+    stopLoss := na
+    target := na
+    // DEBUG: label.new(bar_index, high, "LC:" + str.tostring(close))
+else if strategy[1] == -1 and (close <= target[1] or close > stopLoss[1])
+    alert(message=shortClose, freq=alert.freq_once_per_bar)
+    strategy := na
+    entry := na
+    stopLoss := na
+    target := na
+    // DEBUG: label.new(bar_index, high, "SC:" + str.tostring(close))
+else
+    strategy := strategy[1]
+    entry := entry[1]
+    stopLoss := stopLoss[1]
+    target := target[1]
+    // DEBUG: label.new(bar_index, high, str.tostring(target) + ' / ' + str.tostring(stopLoss))
+    
+// Short Entry
+if shortCondition
+    strategy := -1
+    entry     := lastLow
+    stopLoss  := lastHigh
+    target    := lastLow - (lastHigh - lastLow) * tp
+    
+    // Trade
+    alert(message=shortOpen, freq=alert.freq_once_per_bar)
+    // strategy.entry(id="Short Open @ " + str.tostring(entry), direction=strategy.short)
+    // strategy.exit(id="Short Close @ ", from_entry="Short Open @ " + str.tostring(entry), limit=target, stop=stopLoss)
+    // DEBUG: label.new(bar_index, high, "S: " + str.tostring(entry))
+    
+    // Entry
+    label.new(x=bar_index - 2, y=entry + syminfo.mintick * 2, text='S: ' + str.tostring(entry), color=color.red, style=label.style_none, textcolor=color.red)
+    line.new(x1=timeLow - length, y1=entry, x2=bar_index, y2=entry, color=color.red, width=1, style=line.style_solid) // Entry
+    
+    // Target
+    label.new(x=bar_index - 2, y=target, text='TP: ' + str.tostring(target) + ' (' + str.tostring((entry - target) / entry * 100, '#.##') + '%)', color=color.red, style=label.style_none, textcolor=color.red)
+    line.new(x1=timeLow - length, y1=target, x2=bar_index, y2=target, color=color.red, width=1, style=line.style_dashed) // Target
+    
+    // Stop Loss
+    label.new(x=bar_index - 2, y=stopLoss, text='SL: ' + str.tostring(stopLoss) + ' (' + str.tostring((entry - stopLoss) / entry * 100, '#.##') + '%)', color=color.red, style=label.style_none, textcolor=color.red)
+    line.new(x1=timeHigh - length, y1=stopLoss, x2=bar_index, y2=stopLoss, color=color.red, width=2, style=line.style_dotted) // Stop Loss
+
+// Long Entry
+if longCondition and not shortCondition
+    strategy := 1
+    entry     := lastHigh
+    stopLoss  := lastLow
+    target    := lastHigh + (lastHigh - lastLow) * tp
+    
+    // Trade
+    alert(message=longOpen, freq=alert.freq_once_per_bar)
+    // strategy.entry(id="Long Open @ " + str.tostring(entry), direction=strategy.long)
+    // strategy.exit(id="Long Close @ ", from_entry="Long Open @ " + str.tostring(entry), limit=target, stop=stopLoss)
+    // DEBUG: label.new(bar_index, high, "L: " + str.tostring(entry))
+    
+    // Entry
+    label.new(x=bar_index - 2, y=entry + syminfo.mintick, text='L: ' + str.tostring(entry), color=color.green, style=label.style_none, textcolor=color.green)
+    line.new(x1=timeHigh - length, y1=entry, x2=bar_index, y2=entry, color=color.green, width=1, style=line.style_solid) // Entry
+    
+    // Target
+    label.new(x=bar_index - 2, y=target, text='TP: ' + str.tostring(target) + ' (' + str.tostring((entry - target) / entry * 100, '#.##') + '%)', color=color.green, style=label.style_none, textcolor=color.green)
+    line.new(x1=timeHigh - length, y1=target, x2=bar_index, y2=target, color=color.green, width=1, style=line.style_dashed) // Target
+    
+    // Stop Loss
+    label.new(x=bar_index - 2, y=stopLoss, text='SL: ' + str.tostring(stopLoss) + ' (' + str.tostring((entry - stopLoss) / entry * 100, '#.##') + '%)', color=color.green, style=label.style_none, textcolor=color.green)
+    line.new(x1=timeLow - length, y1=stopLoss, x2=bar_index, y2=stopLoss, color=color.green, width=2, style=line.style_dotted) // Stop Loss
