@@ -4,11 +4,7 @@ strategy(title="ABC Pattern, ADX20, EMA200 (Strategy)", shorttitle="Strategy", o
 
 // Inputs
 int    length       = 5 // input.int(5, "High/Low length")
-string longOpen     = input.text_area(defval='', title="Long Open Alert Message")
-string longClose    = input.text_area(defval='', title="Long Close Alert Message")
-float  minimumAdx   = input.float(20, "Average Directional Movement Index (ADX)")
-string shortOpen    = input.text_area(defval='', title="Short Open Alert Message")
-string shortClose   = input.text_area(defval='', title="Short Close Alert Message")
+float  minimumAdx   = 20 // input.float(20, "Average Directional Movement Index (ADX)")
 string tradetype    = "Long and Short" // input.string(defval="Long and Short", title="Trade Type", options=["Long and Short", "Long", "Short"])
 float  tp           = 0.5 // input.float(0.5, "Take Profit Multiplicator")
 
@@ -58,7 +54,6 @@ for int i = 1 to 10
 
 // Trend Directions
 ema200 = ta.ema(close, 200)
-
 // Confirmations
 [directionalIndexPlus, directionalIndexMinux, adx] = ta.dmi(14, 14)
 
