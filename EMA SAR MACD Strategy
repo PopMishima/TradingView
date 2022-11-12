@@ -1,0 +1,94 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © nzZXulnrtW
+
+//@version=5
+atrMultiplier = 2.5 // input.float(defval=2.5, title="ATR Multiplier")
+minimumAdx = input.float(defval=27, title="ADX >")
+
+strategy(title="EMA,SAR,MACD", overlay=true, precision=3, pyramiding=1, max_bars_back=5000, default_qty_type=strategy.fixed, default_qty_value=0.5, initial_capital=100, slippage = 10, commission_type=strategy.commission.percent, commission_value=0.04)
+
+// EMA's
+ema20 = ta.ema(source=close, length=20)
+ema50 = ta.ema(source=close, length=50)
+ema100 = ta.ema(source=close, length=100)
+ema200 = ta.ema(source=close, length=200)
+isEma200UpTrend = close > ema200 // triggered at bar close
+isEma200DownTrend = close < ema200 // triggered at bar close
+// plot(ema20, color=color.red, title="EMA20")
+// plot(ema50, color=color.orange, title="EMA50")
+// plot(ema100, color=color.teal, title="EMA100")
+plot(ema200, color=color.yellow, title="EMA200")
+
+// Parabolic SARs
+sar = ta.sar(start=0.02, inc=0.02, max=0.2)
+isSarUpTrend = sar < open
+isSarDownTrend = sar > open
+plot(series=sar, style=plot.style_circles, linewidth=2, color=color.blue, title="SAR")
+
+// MACD
+[macdLine, macdSignal, macdHistogram] = ta.macd(source=close, fastlen=12, slowlen=26, siglen=9)
+// plotshape(series=macdHistogram[1] < 0 and macdHistogram[0] > 0, style=shape.arrowup, location=location.belowbar, color=color.blue, text="MACD")
+// plotshape(series=macdHistogram[1] > 0 and macdHistogram[0] < 0, style=shape.arrowdown, location=location.abovebar, color=color.blue, text="MACD")
+// macdCrossOverOnClose = ta.crossover(macdHistogram, 0)
+// macdCrossUnderOnClose = ta.crossunder(macdHistogram, 0)
+// isMacdUpTrend = macdHistogram > 0
+// isMacdDownTrend = macdHistogram < 0
+
+// ATR
+atr = ta.atr(length=14) * atrMultiplier
+upperAtr = close + atr // triggered at bar close
+lowerAtr = close - atr // triggered at bar close
+// plot(series=upperAtr[0], title="Upper ATR Band", color=color.silver, style=plot.style_stepline, linewidth=2)
+// plot(series=lowerAtr[0], title="Lower ATR Band", color=color.silver, style=plot.style_stepline, linewidth=2)
+
+// Average Directional Index (ADX)
+[diPlus, diMinus, adx] = ta.dmi(14, 14)
+
+// Exit Long
+float targetProfit = 0
+float stopLoss = 0
+if (strategy.position_size > 0)
+    stopLoss := strategy.position_avg_price - atr
+    pipsFromStopLoss = strategy.position_avg_price - stopLoss
+    targetProfit := strategy.position_avg_price + (2 * pipsFromStopLoss)
+
+    // Stop Loss
+    if (close <= stopLoss) // or close < ema200) // or ema20 < ema200) // or isMacdDownTrend)
+        strategy.close_all(comment="SL", alert_message="[SL]", immediately=true)
+        // label.new(x=bar_index, y=lowerAtr, text="SL", color=color.red, textcolor=color.white, style=label.style_label_up)
+    
+    // Take Profit
+    if (high > targetProfit)
+        strategy.close_all(comment="TP", alert_message="[TP]", immediately=true)
+        // label.new(x=bar_index, y=upperAtr, text="TP", color=color.green, textcolor=color.white, style=label.style_label_down)
+
+// Exit Short
+else if (strategy.position_size < 0)
+    stopLoss := strategy.position_avg_price + atr
+    pipsFromStopLoss = stopLoss - strategy.position_avg_price
+    targetProfit := strategy.position_avg_price - (2 * pipsFromStopLoss)
+
+    // Stop Loss
+    if (close >= stopLoss) // or close > ema200) // or ema20 > ema200) // or isMacdUpTrend)
+        strategy.close_all(comment="SL", alert_message="[SL]", immediately=true)
+        // label.new(x=bar_index, y=upperAtr, text="SL", color=color.red, textcolor=color.white, style=label.style_label_down)
+    
+    // Take Profit
+    if (low < targetProfit)
+        strategy.close_all(comment="TP", alert_message="[TP]", immediately=true)
+        // label.new(x=bar_index, y=lowerAtr, text="TP", color=color.green, textcolor=color.white, style=label.style_label_up)
+
+// Entry
+if (adx > minimumAdx and strategy.position_size == 0)
+
+    // Long
+    if (close > ema200 and sar < open and macdHistogram > 0)
+        strategy.entry(id="L", direction=strategy.long, comment="L")
+
+    // Short
+    if (close < ema200 and sar > open and macdHistogram < 0)
+        strategy.entry(id="S", direction=strategy.short, comment="S")
+
+// Visualisation
+plot(stopLoss > 0 or targetProfit > 0 ? targetProfit : na, color=color.green, linewidth=2, style=plot.style_stepline, title="Target Profit")
+plot(stopLoss > 0 or targetProfit > 0 ? stopLoss : na, color=color.red, linewidth=2, style=plot.style_stepline, title="Stop Loss")
