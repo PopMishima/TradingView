@@ -2,10 +2,10 @@
 // © nzZXulnrtW
 
 //@version=5
-atrMultiplier = input.float(defval=2.91, title="ATR Multiplier")
-minimumAdx = input.float(defval=30, title="ADX >")
+// atrMultiplier = input.float(defval=2.91, title="ATR Multiplier")
+minimumAdx = input.float(defval=29.98, title="ADX >")
 
-strategy(title="EMA,SAR,MACD", overlay=true, precision=3, pyramiding=1, max_bars_back=5000, default_qty_type=strategy.fixed, default_qty_value=0.1, initial_capital=100, slippage = 10, commission_type=strategy.commission.percent, commission_value=0.05)
+strategy(title="EMA,SAR,MACD Strategy", overlay=true, precision=3, pyramiding=1, max_bars_back=5000, default_qty_type=strategy.fixed, default_qty_value=0.1, initial_capital=100, slippage = 10, commission_type=strategy.commission.percent, commission_value=0.05, process_orders_on_close=1)
 
 // EMA's
 ema20 = ta.ema(source=close, length=20)
@@ -35,9 +35,9 @@ plot(series=sar, style=plot.style_circles, linewidth=2, color=color.blue, title=
 // isMacdDownTrend = macdHistogram < 0
 
 // ATR
-atr = ta.atr(length=14) * atrMultiplier
-upperAtr = close + atr // triggered at bar close
-lowerAtr = close - atr // triggered at bar close
+// atr = ta.atr(length=14) * atrMultiplier
+// upperAtr = close + atr // triggered at bar close
+// lowerAtr = close - atr // triggered at bar close
 // plot(series=upperAtr[0], title="Upper ATR Band", color=color.silver, style=plot.style_stepline, linewidth=2)
 // plot(series=lowerAtr[0], title="Lower ATR Band", color=color.silver, style=plot.style_stepline, linewidth=2)
 
