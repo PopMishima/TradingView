@@ -2,10 +2,10 @@
 // © nzZXulnrtW
 
 //@version=5
-atrMultiplier = 2.5 // input.float(defval=2.5, title="ATR Multiplier")
-minimumAdx = input.float(defval=27, title="ADX >")
+atrMultiplier = input.float(defval=2.91, title="ATR Multiplier")
+minimumAdx = input.float(defval=30, title="ADX >")
 
-strategy(title="EMA,SAR,MACD", overlay=true, precision=3, pyramiding=1, max_bars_back=5000, default_qty_type=strategy.fixed, default_qty_value=0.5, initial_capital=100, slippage = 10, commission_type=strategy.commission.percent, commission_value=0.04)
+strategy(title="EMA,SAR,MACD", overlay=true, precision=3, pyramiding=1, max_bars_back=5000, default_qty_type=strategy.fixed, default_qty_value=0.1, initial_capital=100, slippage = 10, commission_type=strategy.commission.percent, commission_value=0.05)
 
 // EMA's
 ema20 = ta.ema(source=close, length=20)
@@ -45,38 +45,34 @@ lowerAtr = close - atr // triggered at bar close
 [diPlus, diMinus, adx] = ta.dmi(14, 14)
 
 // Exit Long
-float targetProfit = 0
-float stopLoss = 0
+float targetProfit = na
+float stopLoss = na
 if (strategy.position_size > 0)
-    stopLoss := strategy.position_avg_price - atr
+    stopLoss := ema200 //strategy.position_avg_price - atr //
     pipsFromStopLoss = strategy.position_avg_price - stopLoss
-    targetProfit := strategy.position_avg_price + (2 * pipsFromStopLoss)
+    targetProfit := strategy.position_avg_price + (2 * pipsFromStopLoss) // 2 x Risk to Rewards ratio
 
     // Stop Loss
     if (close <= stopLoss) // or close < ema200) // or ema20 < ema200) // or isMacdDownTrend)
         strategy.close_all(comment="SL", alert_message="[SL]", immediately=true)
-        // label.new(x=bar_index, y=lowerAtr, text="SL", color=color.red, textcolor=color.white, style=label.style_label_up)
     
     // Take Profit
-    if (high > targetProfit)
+    if (high > targetProfit) // close
         strategy.close_all(comment="TP", alert_message="[TP]", immediately=true)
-        // label.new(x=bar_index, y=upperAtr, text="TP", color=color.green, textcolor=color.white, style=label.style_label_down)
 
 // Exit Short
 else if (strategy.position_size < 0)
-    stopLoss := strategy.position_avg_price + atr
+    stopLoss := ema200 //strategy.position_avg_price + atr //
     pipsFromStopLoss = stopLoss - strategy.position_avg_price
-    targetProfit := strategy.position_avg_price - (2 * pipsFromStopLoss)
+    targetProfit := strategy.position_avg_price - (2 * pipsFromStopLoss) // 2 x Risk to Rewards ratio
 
     // Stop Loss
     if (close >= stopLoss) // or close > ema200) // or ema20 > ema200) // or isMacdUpTrend)
         strategy.close_all(comment="SL", alert_message="[SL]", immediately=true)
-        // label.new(x=bar_index, y=upperAtr, text="SL", color=color.red, textcolor=color.white, style=label.style_label_down)
     
     // Take Profit
-    if (low < targetProfit)
+    if (low < targetProfit) // close
         strategy.close_all(comment="TP", alert_message="[TP]", immediately=true)
-        // label.new(x=bar_index, y=lowerAtr, text="TP", color=color.green, textcolor=color.white, style=label.style_label_up)
 
 // Entry
 if (adx > minimumAdx and strategy.position_size == 0)
@@ -90,5 +86,5 @@ if (adx > minimumAdx and strategy.position_size == 0)
         strategy.entry(id="S", direction=strategy.short, comment="S")
 
 // Visualisation
-plot(stopLoss > 0 or targetProfit > 0 ? targetProfit : na, color=color.green, linewidth=2, style=plot.style_stepline, title="Target Profit")
-plot(stopLoss > 0 or targetProfit > 0 ? stopLoss : na, color=color.red, linewidth=2, style=plot.style_stepline, title="Stop Loss")
+plot(na(targetProfit) ? na : targetProfit, color=color.green, linewidth=2, style=plot.style_stepline, title="Target Profit")
+plot(na(stopLoss) ? na : stopLoss, color=color.red, linewidth=2, style=plot.style_stepline, title="Stop Loss")
